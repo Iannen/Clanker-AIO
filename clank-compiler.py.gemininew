@@ -293,7 +293,7 @@ class EnvironmentManager:
         plan = {"create": [], "delete": []}
         create_matches = re.findall(r"§#§start:create:(.*?)§#§\n(.*?)\n§#§end:create:\1§#§", content, re.DOTALL)
         for path, body in create_matches:
-            plan["create"].append({"path": path.strip(), "content": body.rstrip('\r\n') + '\n'})
+            plan["create"].append({"path": path.strip(), "content": body})
         delete_matches = re.findall(r"§#§start:delete:(.*?)§#§\n(.*?)\n§#§end:delete:\1§#§", content, re.DOTALL)
         for path, body in delete_matches:
             plan["delete"].append({"path": path.strip()})

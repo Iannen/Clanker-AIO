@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#§§§§§§§§§§§§§§§§ section 1 start - do not return anything in section 1 or preceding it - including shebang §§§§§§§§§§§§§§§§§#
+apply() {
+    :
+}
+undo() {
+    :
+}
+#§§§§§§§§§§§§§§§§ section 2 - return a version of the below to implement the refactor §§§§§§§§§§§§§§§§§#
+§#§start:create:clanker_test.txt§#§
+Hello from the new batch pipeline!
+§#§end:create:clanker_test.txt§#§

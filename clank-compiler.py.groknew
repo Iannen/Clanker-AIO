@@ -1,6 +1,9 @@
+**clank-compiler.py** (complete drop-in replacement)
+
+```python
 #!/usr/bin/env python3
 """ Clanker AIO Repository Manager """
-""" **Last edit notes (1 line format):** Upgraded EnvironmentManager to robust multi-file structural artifact pipeline with atomic states."""
+""" **Last edit notes (1 line format):** Refactored for multi-file refactor artifact support """
 import os
 import shutil
 import glob
@@ -10,11 +13,14 @@ import base64
 import re
 import readline
 import hashlib
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+""" STATIC DECLARATIONS """
+
 STRIP_MARKER = "--- START PROMPT ---"
+
+""" DOMAIN CODE - BUSINESS LOGIC """
 
 @dataclass
 class AppState:
@@ -60,6 +66,7 @@ class Harness:
     def start(self):
         repo_config_dir = self.state.repo_root / "Clanker"
         repo_config_file = repo_config_dir / "config.clank"
+        
         if not repo_config_file.exists():
             try:
                 ans = input("This isn't a repository. Initialize? (y/n): ").strip().lower()
@@ -87,6 +94,7 @@ class Harness:
                 self.exit()
         else:
             self.load_config_from_disk()
+        
         while True:
             self.load_config_from_disk()
             self.render()
@@ -101,6 +109,7 @@ class Harness:
 
     def handle(self, command):
         self.state.beancounter += 1
+        
         if command in ("q", "w", "e"):
             self.state.flow_char = command
             self.state.debug = False
@@ -128,9 +137,11 @@ class Harness:
     def render(self):
         os.system("clear" if os.name != "nt" else "cls")
         st = self.state
+        
         location_path = st.repo_root / "Clanker"
         location_marker = f"{st.repo_root} [Active]" if location_path.exists() else str(st.repo_root)
         active_set = st.disk_config.get("active_rag_set", "None")
+
         print("================================================")
         print("⚡ Interactive Launcher - Clanker Consultant")
         print("================================================")
@@ -158,20 +169,26 @@ class Harness:
         print("\n\n👋 Bye bye!")
         sys.exit(0)
 
+""" SUPPORTING CODE - LOW LEVEL """
 class Compiler:
+
     @staticmethod
     def _resolve_rag_files(state: AppState) -> list:
         active_set_name = state.disk_config.get("active_rag_set", "")
         rag_sets = state.disk_config.get("rag_sets", [])
+        
         if not rag_sets:
             raise ValueError("Configuration Error: No 'rag_sets' defined in config.clank.")
+            
         target_set = None
         for r_set in rag_sets:
             if r_set.get("name") == active_set_name:
                 target_set = r_set
                 break
+                
         if not target_set:
             raise ValueError(f"Configuration Error: Active RAG set '{active_set_name}' not found in available rag_sets.")
+            
         resolved_paths = []
         for pattern in target_set.get("paths", []):
             full_pattern = str(state.repo_root / pattern)
@@ -186,8 +203,10 @@ class Compiler:
         files = Compiler._resolve_rag_files(state)
         if not files:
             return "."
+        
         tree_lines = ["."]
         paths_relative = [f.relative_to(state.repo_root) for f in files]
+        
         for path in paths_relative:
             parts = path.parts
             for i in range(len(parts)):
@@ -236,20 +255,26 @@ class Compiler:
     def resolve_node(token, stack, state: AppState):
         if token in stack:
             raise RuntimeError("Include cycle detected: " + " -> ".join(stack + [token]))
+        
         if token == "file_tree":
             return Compiler.generate_file_tree(state)
         elif token == "files":
             return Compiler.generate_files_content(state)
+            
         source_path, raw_content = Compiler.resolve_source(token, state)
         content = Compiler.preprocess(raw_content, source_path, state)
+        
         lines = content.splitlines()
         processed_lines = []
+
         for line in lines:
             match = re.match(r"^\s*§§(.*)§§\s*$", line)
             if match:
                 token_id = match.group(1)
                 line = Compiler.resolve_node(token_id, stack + [token], state)
+                
             processed_lines.append(line)
+        
         return "\n".join(processed_lines)
 
     @staticmethod
@@ -267,99 +292,137 @@ class Compiler:
                 return "\n".join(lines[marker_index + 1:])
             return content
 
+class RefactorArtifact:
+    @staticmethod
+    def parse_artifact(artifact_content: str):
+        lines = artifact_content.splitlines()
+        operations = []
+        in_section2 = False
+        current_op = None
+        current_content = []
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("#§§§§§§§§§§§§§§§§ section 2"):
+                in_section2 = True
+                continue
+            if not in_section2:
+                continue
+
+            if stripped.startswith("§#§start:"):
+                if current_op:
+                    operations.append((current_op, "\n".join(current_content).strip()))
+                parts = stripped[5:].split(":", 1)
+                op_type = parts[0].rstrip("§#§").strip()
+                path = parts[1].strip() if len(parts) > 1 else ""
+                current_op = (op_type, path)
+                current_content = []
+            elif stripped.startswith("§#§end:"):
+                if current_op:
+                    operations.append((current_op, "\n".join(current_content).strip()))
+                    current_op = None
+                    current_content = []
+            elif current_op:
+                current_content.append(line)
+
+        if current_op:
+            operations.append((current_op, "\n".join(current_content).strip()))
+
+        return operations
+
+    @staticmethod
+    def validate(artifact_content: str) -> bool:
+        if not artifact_content or "§#§start:" not in artifact_content:
+            return False
+        return True
+
 class EnvironmentManager:
-    def __init__(self, state_service: AppState):
+    BACKUPS_DIR = "Clanker/backups"
+    ARTIFACT_PATH = "Clanker/backups/refactor-plan.artifact"
+    HASHES_PATH = "Clanker/backups/hashes.map"
+
+    def __init__(self, state_service: AppState, target_path: str = None):
         self.state = state_service
-        self.backup_dir = self.state.repo_root / "Clanker/backups"
-        self.artifact_path = self.backup_dir / "refactor-plan.artifact"
-        self.hash_map_path = self.backup_dir / "hashes.map"
-        self.past_dir = self.state.repo_root / "Clanker/past_artifacts"
+        self.target = os.path.abspath(target_path) if target_path else None
+        self.config_path = self.state.repo_root / "Clanker/config.clank"
+        self.backups_dir = self.state.repo_root / self.BACKUPS_DIR
+        self.artifact_path = self.state.repo_root / self.ARTIFACT_PATH
+        self.hashes_path = self.state.repo_root / self.HASHES_PATH
 
     @staticmethod
-    def _str_sha256(text: str) -> str:
-        return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-    @staticmethod
-    def _file_sha256(path: Path) -> str:
-        if not path.is_file():
+    def _compute_sha256(file_path: str) -> str:
+        if not os.path.exists(file_path):
             return ""
         hash_sha256 = hashlib.sha256()
-        with open(path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_sha256.update(chunk)
-        return hash_sha256.hexdigest()
-
-    def _parse_artifact(self, content: str) -> dict:
-        plan = {"create": [], "delete": []}
-        create_matches = re.findall(r"§#§start:create:(.*?)§#§\n(.*?)\n§#§end:create:\1§#§", content, re.DOTALL)
-        for path, body in create_matches:
-            plan["create"].append({"path": path.strip(), "content": body.rstrip('\r\n') + '\n'})
-        delete_matches = re.findall(r"§#§start:delete:(.*?)§#§\n(.*?)\n§#§end:delete:\1§#§", content, re.DOTALL)
-        for path, body in delete_matches:
-            plan["delete"].append({"path": path.strip()})
-        return plan
+        try:
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_sha256.update(chunk)
+            return hash_sha256.hexdigest()
+        except Exception:
+            return ""
 
     def _get_state(self) -> str:
-        if not self.backup_dir.exists():
+        if not self.backups_dir.exists():
             return "free"
-        if not self.artifact_path.exists() or not self.hash_map_path.exists():
+        
+        if not self.artifact_path.exists():
             return "error"
+        
         try:
-            artifact_content = self.artifact_path.read_text(encoding="utf-8")
-            hmap = json.loads(self.hash_map_path.read_text(encoding="utf-8"))
+            with open(self.hashes_path) as f:
+                hashes = json.load(f)
         except Exception:
             return "error"
-        plan = self._parse_artifact(artifact_content)
-        applied_match = True
-        not_applied_match = True
-        for op in plan["create"]:
-            t_path = self.state.repo_root / op["path"]
-            if not t_path.is_file():
-                applied_match = False
-            else:
-                if self._file_sha256(t_path) != self._str_sha256(op["content"]):
-                    applied_match = False
-            if t_path.is_file():
-                not_applied_match = False
-        for op in plan["delete"]:
-            t_path = self.state.repo_root / op["path"]
-            orig_hash = hmap.get(op["path"])
-            if t_path.is_file():
-                applied_match = False
-                if self._file_sha256(t_path) != orig_hash:
-                    not_applied_match = False
-            else:
-                b_path = self.backup_dir / op["path"]
-                if not b_path.is_file() or self._file_sha256(b_path) != orig_hash:
-                    not_applied_match = False
-        for rel_p, orig_hash in hmap.items():
-            if any(op["path"] == rel_p for op in plan["delete"]):
-                continue
-            t_path = self.state.repo_root / rel_p
-            if not t_path.is_file():
-                applied_match = False
-                not_applied_match = False
-                continue
-            curr_hash = self._file_sha256(t_path)
-            target_applied_content = None
-            for op in plan["create"]:
-                if op["path"] == rel_p:
-                    target_applied_content = op["content"]
-                    break
-            if target_applied_content is not None:
-                if curr_hash != self._str_sha256(target_applied_content):
-                    applied_match = False
-                if curr_hash != orig_hash:
-                    not_applied_match = False
-            else:
-                if curr_hash != orig_hash:
-                    applied_match = False
-                    not_applied_match = False
-        if applied_match:
+
+        operations = RefactorArtifact.parse_artifact(self.artifact_path.read_text(encoding="utf-8"))
+        
+        modified_deleted = []
+        new_files = []
+        for (op_type, path), _ in operations:
+            full_path = str(self.state.repo_root / path)
+            if op_type in ("create", "modify"):
+                if op_type == "modify":
+                    modified_deleted.append(full_path)
+                else:
+                    new_files.append(full_path)
+            elif op_type == "delete":
+                modified_deleted.append(full_path)
+
+        # applied?
+        if all(os.path.exists(p) for p in modified_deleted) and all(os.path.exists(p) for p in new_files):
             return "applied"
-        if not_applied_match:
-            return "not_applied"
+
+        # not_applied?
+        if all(not os.path.exists(p) for p in new_files):
+            orig_ok = True
+            for p in modified_deleted:
+                rel = os.path.relpath(p, self.state.repo_root)
+                if rel in hashes:
+                    if self._compute_sha256(p) != hashes[rel]:
+                        orig_ok = False
+                        break
+            if orig_ok:
+                return "not_applied"
+
         return "error"
+
+    def _update_config(self, path_value):
+        if self.config_path.exists():
+            try:
+                data = json.loads(self.config_path.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+        else:
+            data = {}
+        
+        if path_value:
+            data["active_mutation_path"] = path_value
+        else:
+            data.pop("active_mutation_path", None)
+            
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        self.config_path.write_text(json.dumps(data, indent=4), encoding="utf-8")
 
     @staticmethod
     def copy_to_clipboard(text) -> int:
@@ -371,8 +434,52 @@ class EnvironmentManager:
 
     @staticmethod
     def acquire_and_run(state_service: AppState, get_char_func):
+        repo_config = state_service.repo_root / "Clanker/config.clank"
+        target_input = ""
+        
+        if repo_config.exists():
+            try:
+                data = json.loads(repo_config.read_text(encoding="utf-8"))
+                target_input = data.get("active_mutation_path", "")
+            except Exception:
+                pass
+
+        if not target_input:
+            def path_completer(text, state):
+                matches = glob.glob(text + '*')
+                return (matches + [None])[state]
+
+            readline.set_completer_delims(' \t\n=')
+            readline.parse_and_bind("tab: complete")
+            readline.set_completer(path_completer)
+
+            print("\n")
+            try:
+                target_input = input("Enter path to file (Tab-Completion enabled): ").strip()
+            except (KeyboardInterrupt, EOFError):
+                state_service.last_message = "File selection aborted."
+                return
+
+            if target_input.endswith('/') or target_input.endswith('\\'):
+                target_input = target_input[:-1]
+
+            if not target_input:
+                state_service.last_message = "No file path specified."
+                return
+
+            if os.path.isdir(target_input):
+                state_service.last_message = f"❌ Rejected: '{target_input}' is a directory."
+                return
+            
+            if not os.path.exists(target_input):
+                parent_dir = os.path.dirname(target_input) or '.'
+                if not os.path.isdir(parent_dir):
+                    state_service.last_message = "❌ Rejected: Invalid structural path."
+                    return
+
         try:
-            mgr = EnvironmentManager(state_service)
+            mgr = EnvironmentManager(state_service, target_input)
+            mgr._update_config(mgr.target)
             mgr.run_loop(get_char_func)
             state_service.last_message = "Exited File Manager sub-loop."
         except Exception as e:
@@ -383,53 +490,47 @@ class EnvironmentManager:
             os.system("clear" if os.name != "nt" else "cls")
             status = self._get_state()
             print(f"============================================================")
-            print(f"📂 Batch Artifact File Manager")
-            print(f"State:        {status.upper()}")
+            print(f"📂 File Manager: Refactor Mode")
+            print(f"Status:       {status}")
             print(f"============================================================")
             print("Commands Matrix:")
-            print("   [q] Receive Refactor Artifact   [w] Toggle Execution (Apply/Undo)")
-            print("   [e] Test Pipeline               [r] Resolve Mutation (Accept/Reject)")
-            print("   [f] Back Out Immediately")
+            print("   [q] Receive Artifact   [w] Toggle Execution")
+            print("   [e] Test Pipeline      [r] Resolve Mutation")
+            print("   [f] Back Out")
             print(f"============================================================")
             print("file-mgr> ", end="", flush=True)
+            
             try:
                 key = get_char_func().lower()
             except (KeyboardInterrupt, EOFError):
                 break
+                
             if key == "f":
                 break
-            if status == "error" and key in ("q", "w", "e", "r"):
-                print("\n❌ System is in ERROR state. Action blocked. Clear blockages manually.")
-                input("Press any key to return...")
-                continue
-            if key == "q":
+            elif key == "q":
                 if status != "free":
-                    print(f"\n❌ Refused: Pipeline state must be FREE (Current: {status}).")
-                    input("Press any key to return...")
+                    print("\n❌ Only allowed in FREE state.")
+                    input("Press any key...")
                     continue
                 self.receive()
             elif key == "w":
-                if status == "free":
-                    print("\n❌ Refused: No artifact structured to toggle execution.")
-                    input("Press any key to return...")
+                if status == "error" or status == "free":
+                    print("\n❌ Invalid state for toggle.")
+                    input("Press any key...")
                     continue
-                self.toggle_execution(status)
+                self.toggle_execution()
             elif key == "e":
-                if status == "free":
-                    print("\n❌ Refused: No testing state context available.")
-                    input("Press any key to return...")
-                    continue
                 self.test_pipeline()
             elif key == "r":
-                if status == "free":
-                    print("\n❌ Refused: No ongoing mutation session available.")
-                    input("Press any key to return...")
+                if status == "error" or status == "free":
+                    print("\n❌ Invalid state for resolve.")
+                    input("Press any key...")
                     continue
-                if self.resolve_mutation(status):
+                if self.resolve_mutation():
                     break
 
     def receive(self):
-        print("\nEnter artifact stream payload (Ctrl+D to finish):")
+        print(f"\nEnter refactor artifact (Ctrl+D to finish):")
         lines = []
         try:
             while True:
@@ -439,128 +540,123 @@ class EnvironmentManager:
         except KeyboardInterrupt:
             print("\nAborted.")
             return
-        plan = self._parse_artifact(content)
-        if not plan["create"] and not plan["delete"]:
-            print("\n❌ Validation Failed: No executable blocks matched structural format.")
+            
+        if not RefactorArtifact.validate(content):
+            print("❌ Invalid artifact.")
             input("Press any key...")
             return
-        hmap = {}
-        for op in plan["create"]:
-            t_path = self.state.repo_root / op["path"]
-            if t_path.is_file():
-                hmap[op["path"]] = self._file_sha256(t_path)
-        for op in plan["delete"]:
-            t_path = self.state.repo_root / op["path"]
-            if not t_path.is_file():
-                print(f"\n❌ Validation Failed: Targeted deletion file '{op['path']}' does not exist.")
-                input("Press any key...")
-                return
-            hmap[op["path"]] = self._file_sha256(t_path)
-        try:
-            self.backup_dir.mkdir(parents=True, exist_ok=True)
-            self.artifact_path.write_text(content, encoding="utf-8")
-            self.hash_map_path.write_text(json.dumps(hmap, indent=4), encoding="utf-8")
-            for rel_p in hmap.keys():
-                src_f = self.state.repo_root / rel_p
-                bak_f = self.backup_dir / rel_p
-                bak_f.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src_f, bak_f)
-            print("\n✔ Staged artifact completely. Hashed matching tracking matrices.")
-            input("Press any key...")
-        except Exception as e:
-            if self.backup_dir.exists():
-                shutil.rmtree(self.backup_dir)
-            print(f"\n❌ Fatal Pipeline Staging Error: {e}")
-            input("Press any key...")
 
-    def toggle_execution(self, current_status: str):
-        try:
-            artifact_content = self.artifact_path.read_text(encoding="utf-8")
-            hmap = json.loads(self.hash_map_path.read_text(encoding="utf-8"))
-        except Exception as e:
-            print(f"\n❌ Failed to load artifacts: {e}")
-            input()
-            return
-        plan = self._parse_artifact(artifact_content)
-        if current_status == "not_applied":
-            for op in plan["create"]:
-                t_path = self.state.repo_root / op["path"]
-                if not t_path.is_file():
-                    t_path.parent.mkdir(parents=True, exist_ok=True)
-            for op in plan["create"]:
-                t_path = self.state.repo_root / op["path"]
-                with open(t_path, "w", encoding="utf-8") as f:
-                    f.write(op["content"])
-                os.chmod(t_path, 0o755)
-            for op in plan["delete"]:
-                t_path = self.state.repo_root / op["path"]
-                if t_path.is_file():
-                    os.remove(t_path)
-                    self._cleanup_empty_dirs(t_path.parent)
-            print("\n✔ Mutation state successfully APPLIED to workspace.")
-            input("Press any key...")
-        elif current_status == "applied":
-            for op in plan["create"]:
-                t_path = self.state.repo_root / op["path"]
-                if op["path"] in hmap:
-                    bak_f = self.backup_dir / op["path"]
-                    shutil.copy2(bak_f, t_path)
-                else:
-                    if t_path.is_file():
-                        os.remove(t_path)
-                        self._cleanup_empty_dirs(t_path.parent)
-            for op in plan["delete"]:
-                t_path = self.state.repo_root / op["path"]
-                bak_f = self.backup_dir / op["path"]
-                t_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(bak_f, t_path)
-            print("\n✔ Mutation state successfully ROLLED BACK to safe baseline.")
-            input("Press any key...")
+        self.backups_dir.mkdir(parents=True, exist_ok=True)
+        self.artifact_path.write_text(content, encoding="utf-8")
 
-    def _cleanup_empty_dirs(self, directory: Path):
-        curr = directory
-        while curr != self.state.repo_root:
-            if curr.exists() and os.path.isdir(curr) and not os.listdir(curr):
-                os.rmdir(curr)
-                curr = curr.parent
-            else:
-                break
+        operations = RefactorArtifact.parse_artifact(content)
+        hashes = {}
+
+        for (op_type, rel_path), _ in operations:
+            full_path = str(self.state.repo_root / rel_path)
+            if op_type in ("modify", "delete") and os.path.exists(full_path):
+                bak_path = self.backups_dir / rel_path
+                bak_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(full_path, bak_path)
+                hashes[rel_path] = self._compute_sha256(full_path)
+
+        with open(self.hashes_path, "w") as f:
+            json.dump(hashes, f, indent=2)
+
+        print("✔ Artifact received and backups staged.")
+        input("Press any key...")
+
+    def toggle_execution(self):
+        if self._get_state() == "applied":
+            self._undo()
+        else:
+            self._apply()
+
+    def _apply(self):
+        content = self.artifact_path.read_text(encoding="utf-8")
+        operations = RefactorArtifact.parse_artifact(content)
+        
+        for (op_type, rel_path), new_content in operations:
+            full_path = self.state.repo_root / rel_path
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            if op_type in ("create", "modify"):
+                with open(full_path, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                try:
+                    os.chmod(full_path, 0o755 if str(full_path).endswith((".py", ".sh")) else 0o644)
+                except:
+                    pass
+            elif op_type == "delete":
+                if full_path.exists():
+                    full_path.unlink()
+                    parent = full_path.parent
+                    while parent != self.state.repo_root and len(list(parent.iterdir())) == 0:
+                        parent.rmdir()
+                        parent = parent.parent
+
+        print("✔ Refactor applied.")
+        input("Press any key...")
+
+    def _undo(self):
+        content = self.artifact_path.read_text(encoding="utf-8")
+        operations = RefactorArtifact.parse_artifact(content)
+        try:
+            hashes = json.loads(self.hashes_path.read_text())
+        except:
+            hashes = {}
+
+        for (op_type, rel_path), _ in operations:
+            full_path = self.state.repo_root / rel_path
+            bak_path = self.backups_dir / rel_path
+            if op_type in ("modify", "delete") and bak_path.exists():
+                shutil.copy2(bak_path, full_path)
+            elif op_type == "create" and full_path.exists():
+                full_path.unlink()
+                parent = full_path.parent
+                while parent != self.state.repo_root and len(list(parent.iterdir())) == 0:
+                    parent.rmdir()
+                    parent = parent.parent
+
+        print("✔ Refactor undone.")
+        input("Press any key...")
 
     def test_pipeline(self):
-        print("\n[Executing Artifact Test Suite Pipeline]")
+        print("\n[Executing Test Pipeline]")
         print("test placeholder")
-        input("\nPress any key to return...")
+        print("\nPress any key to return...")
+        input()
 
-    def resolve_mutation(self, current_status: str) -> bool:
-        if current_status == "applied":
-            print(f"\n⚠️ WARNING: Safe backup tracking states will be permanently purged.")
-            ans = input("Confirm structural ACCEPTANCE of ongoing changes? (y/n): ").strip().lower()
+    def resolve_mutation(self) -> bool:
+        status = self._get_state()
+        if status == "applied":
+            print("\n⚠️ WARNING: Accepting will purge backups.")
+            ans = input("Accept changes? (y/n): ").strip().lower()
             if ans == 'y':
-                self.past_dir.mkdir(parents=True, exist_ok=True)
-                ts = int(time.time())
-                dest_a = self.past_dir / f"artifact_{ts}.accepted"
-                shutil.move(str(self.artifact_path), str(dest_a))
-                shutil.rmtree(self.backup_dir)
-                print("✔ Active mutation finalized into repository tree history completely.")
-                input()
-                return True
-        elif current_status == "not_applied":
-            print(f"\n⚠️ WARNING: Staged file matrices will be destroyed.")
-            ans = input("Confirm dynamic REJECTION of staged structural modifications? (y/n): ").strip().lower()
-            if ans == 'y':
-                self.past_dir.mkdir(parents=True, exist_ok=True)
-                ts = int(time.time())
-                dest_a = self.past_dir / f"artifact_{ts}.rejected"
-                shutil.move(str(self.artifact_path), str(dest_a))
-                shutil.rmtree(self.backup_dir)
-                print("✔ Changes rejected. Base configuration returned safely.")
-                input()
+                past_dir = self.state.repo_root / "Clanker/past_artifacts"
+                past_dir.mkdir(parents=True, exist_ok=True)
+                timestamp = int(os.time())
+                shutil.move(str(self.artifact_path), str(past_dir / f"artifact_{timestamp}.accepted"))
+                if self.backups_dir.exists():
+                    shutil.rmtree(self.backups_dir)
+                self._update_config(None)
+                print("Accepted.")
                 return True
         else:
-            print("\n❌ Mutation must be dynamically APPLIED or completely UNAPPLIED to resolve explicitly.")
-            input()
+            print("\n⚠️ WARNING: Rejecting will destroy staged changes.")
+            ans = input("Reject changes? (y/n): ").strip().lower()
+            if ans == 'y':
+                past_dir = self.state.repo_root / "Clanker/past_artifacts"
+                past_dir.mkdir(parents=True, exist_ok=True)
+                timestamp = int(os.time())
+                shutil.move(str(self.artifact_path), str(past_dir / f"artifact_{timestamp}.rejected"))
+                if self.backups_dir.exists():
+                    shutil.rmtree(self.backups_dir)
+                self._update_config(None)
+                print("Rejected.")
+                return True
         return False
 
+""" ASSETS & MAIN """
 class DefaultPrompt:
     @staticmethod
     def get_default(fragment_name) -> str:
