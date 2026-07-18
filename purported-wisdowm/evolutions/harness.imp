@@ -1,0 +1,31 @@
+# Evolution Summary: compiler.sh
+
+This document summarizes the structural and functional evolution of the Clanker compilation subsystem from its legacy design to the modern pipeline architecture.
+
+---
+
+## 1. Architectural Transition: Flat to Hierarchical
+
+### Legacy System Layout
+Previously, the compilation engine operated on a flat, single-directory layout:
+* All prompt pieces resided in a single folder: `src/prompt-fragments/`.
+* The entrypoint file was statically hardcoded to a single root: `operation-instructions.fragment`.
+* High-level user interaction rules and physical file retrieval mechanics were tightly coupled, meaning any change to workflow keys required rewriting path structures directly inside the main loop.
+
+### Modern Pipeline Layout
+The system has transitioned to a highly modular, prioritized folder tree:
+* **Default Blueprint Hierarchy (`src/pipelines/default/`)**: Standard baseline templates are isolated into a standalone fallback directory. These provide the core system "defaults" for client, consultant, domains, runtime, and protocol definitions.
+* **Flow-Specific Environments (`src/pipelines/flows/{e,q,r,w}/`)**: Each CLI action key (such as `q` for query or `e` for config/handover) now maps to its own physical directory. This allows the compiler to resolve action-specific overrides dynamically.
+
+---
+
+## 2. Compilation and Resolution Logic Evolution
+
+### Legacy Resolution
+* **Single Path Lookup**: Files were resolved using a hardcoded path prefix (`PROMPT_DIR`).
+* **Static Target Matching**: Triggering the compilation process always targeted the same file, regardless of context or user intent.
+* **Basic Text Expansion**: The recursive placeholder replacement (`§§name§§`) simply read files from a single flat space, offering no fallback options if a file was missing or specialized.
+
+### Modern Resolution (Target Alignment)
+* **Priority-Based Fallback Resolving**: When the user triggers an action (e.g., `q`), the compiler prioritizes resolving requested fragments within that specific action's flow directory (`src/pipelines/flows/q/`). If a fragment does not exist there, the compiler gracefully falls back to the master blueprints in `src/pipelines/default/`.
+* **Dynamic Pipeline Routing**: The hardcoded root file target has been dismantled. Each execution flow has its own independent entry point (`game-runtime.fragment` or similar), enabling isolated execution structures for config, query, refactor, and workspace compilation tasks.

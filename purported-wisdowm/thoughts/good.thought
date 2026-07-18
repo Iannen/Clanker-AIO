@@ -1,0 +1,55 @@
+# Clanker System State & Handover Blueprint
+
+## Category 1: General Principles
+
+* **Architecture & Scope Segregation (Separation of Concerns)**
+    * Enforce a hard boundary between dynamic runtime states (the active project being operated on) and static system configurations (the core automation toolkit).
+    * Restricting system assets from polluting active workspace target areas keeps the environment pristine, predictable, and simple to backup or wipe.
+
+* **Separation of Mechanism and Policy**
+    * Strictly isolate physical execution capabilities (the *mechanisms*, such as terminal input captures, terminal output channels, and string parsing) from the operational rules defining how they behave (the *policies*, such as specific keybind actions, prompt configurations, and menu layouts).
+    * This separation ensures that altering how a user works with the tool does not require modification to, or endanger the stability of, the underlying system engines.
+
+* **The Principle of "Separating High and Low"**
+    * Segment files cleanly into clearly demarcated zones: a High-Level Declarative Zone at the top for configurations, pipelines, and routing tables; and a Low-Level Plumbing Zone at the bottom containing hardware hooks, OS system calls, and network wrappers.
+    * This architectural split reduces cognitive friction, making systems highly adaptable because everyday configurations can be changed without exposing the developer to raw system-level mechanics.
+
+* **Correctness-by-Construction**
+    * Guarantee system integrity by choosing preventative architectures over reactive validation. Rather than building validators, checkers, or linters to catch mistakes post-factum, design interfaces and APIs such that malformed states are syntactically and mathematically unrepresentable.
+
+* **Value Extraction Practice**
+    * **Definitional Intent**: A programmatic clean-sweep conversational exit protocol designed to completely and safely offload the current workspace session, transforming transient dialogue achievements into concrete design patterns.
+    * **The Baseline Safe-Anchor Constraint**: The practice strictly anchors its extraction origin on the last fully intact codebase state provided directly by the user. By ignoring conversational hand-waving or unverified suggestions, it eliminates the "phantom feature trap"—the AI assuming an edit has been committed when it only exists as a conversational thought.
+    * **The Flat-Delivery Rule**: All compiled value assertions must be delivered in a single, non-fabulous, deeply flattened Markdown container. The payload is strictly forbidden from nesting internal markdown code blocks or markdown blockquotes, guaranteeing that it remains 100% copy-safe and clean for IDE pasting.
+
+---
+
+## Category 2: Project-Specific Applications of Principles
+
+* **Directory Boundary Enforcement (`repo_dir` vs. `script_dir`)**
+    * Apply Scope Segregation by separating active workspace targets (`repo_dir`, housing code under development and active configuration files like `.Clanker/config.clank`) from the compiler execution assets (`script_dir`, housing core compiler engines and default blueprints).
+
+* **System-Independent Transport Primitives (OSC 52 & Raw TTY)**
+    * Isolate transport and input mechanisms from local OS dependencies. Capture keystrokes instantly via low-level Unix POSIX C-bindings (`termios`/`tty`) and deliver copy operations directly through the terminal stream using base64 escape sequences (`OSC 52`).
+    * This makes the compiler instantly transportable, capable of running inside Docker, over SSH, and inside terminal multiplexers without needing desktop display drivers.
+
+* **Vertical Parsing Grammar & Human/Machine Split**
+    * Enforce clean output generation by requiring vertical alignment of recursive placeholders on separate lines, preventing horizontal layout collapsion.
+    * Isolate user notes from operational payloads by treating the sequence "--- START PROMPT ---" as an absolute compilation parser boundary, automatically stripping human documentation to minimize LLM context cost.
+
+---
+
+## Category 3: Good Ideas for Project Evolution
+
+* **Scope-Bundled Defaults with User-Driven Asset Promotion**
+    * Keep the compiler 100% zero-dependency out of the box by storing core default prompt fragments directly inside the Python script scope as standard fallback string variables.
+    * Implement an initialization function allowing users to promote these default variables into named physical files inside the local directory upon explicit consent, enabling modular customization without requiring pre-installed file assets.
+
+* **Fluent Prompt Construction API**
+    * Replace string-based template replacement (and its risk of broken tags or mismatched spaces) with a programmatic builder tree. Use chained Node objects (`Node().add_child()`) that automatically calculate depth, prefix correct indentations, and append matching closing tags during serialization.
+
+* **Cyclic Include Protection**
+    * Prevent infinite recursion loops when files include other files by tracking canonical paths (`Path.resolve()`) on an explicit active-compilation traversal stack, terminating compilation with clear diagnostics if a reference cycle is detected.
+
+* **Integrated Value Extraction Pipeline ("e" Command)**
+    * Integrate the "Value Extraction" pattern directly into the interactive compiler cockpit. Pressing the "e" config key compiles the current state delta, design principles, and architecture rules, rendering a flat, copy-safe transfer log straight to the system clipboard for immediate session handover.

@@ -1,0 +1,22 @@
+1. **`<game-runtime>` — the runtime world/container**
+
+   **Wisdom:**  
+   The runtime is not primarily a prompt; it is a constructed world state. The outer element establishes the existence of a complete interaction environment.
+
+   **Action view:**  
+   The runtime itself does not act. It provides the context from which action becomes possible. Its purpose is to make the later actions of client, consultant, domains, and protocol coherent by establishing that these entities exist together.
+
+   **Guiding principle:**  
+   *Create the minimum complete world in which the desired behaviour naturally emerges.*
+
+triple backtick encapsulated to retain indent through GUI - a core workflow.
+--- START PROMPT ---
+```
+<game-runtime>
+    §§client§§
+    §§consultant§§
+    §§domains§§
+    §§interaction-protocol§§
+    <init -> perform silent analysis, then reply in-role/>
+</game-runtime>.init()
+```

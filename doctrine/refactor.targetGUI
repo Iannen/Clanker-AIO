@@ -1,0 +1,43 @@
+there is a global object to supply vars.
+context;
+
+╔══════════════════════════════════════════════════════╗
+║  ⚡ INTERACTIVE LAUNCHER ── CLANKER CONSULTANT  [■]  ║
+╠══════════════════════════════════════════════════════╣
+  📂 context.repo.dir 
+	=> Status: context.status
+
+  Rag Source:  []
+╟──────────────────────────────────────────────────────╢
+                 |Q| |W| |E| |R|
+                  |A| |S| |D| |F|
+╟──────────────────────────────────────────────────────╢
+  [q] Repository development
+        => 1: Isolate backlog items for targeting
+        => 2: Produce a refactor plan
+        => 3: Receive a shell script 
+        => 4: Perform your git rituals, then apply the script
+
+  [w] Repository documentation management
+        => 1: Select either one of the backlog or repository history documents
+	=> 2: Work on the contents of the backlog
+	=> 3: ...or work on the history document - such as draining the backlog of completed items
+        => 2: Steps 3 and 4 as above
+
+  [r] Clank prompt-engineering & instruction development
+        => Customize and develop the clanker_aio.py script
+        => Requires changing directory to: script:dir>  //alternate display if we are in that folder, letting user know. context has the info as always
+
+  [e] Repository bootstrap & config
+        => Arrange to receive you script in a more permissive pipeline
+	=> Which permits working on more tangential activities
+	=> ..while retaining the script validation for the main flows.
+
+  [a] Analyzer            [Not in use - stub implementation]
+  [s] Sync                [Not in use - stub implementation]
+  [d] Get commented prompt  Receive R's prompt as comments.
+  [f] Receive artifact      Receive a file from Clanker!
+╚══════════════════════════════════════════════════════╝
+  [Ctrl+C] Exit  │  <config.somecurrentmsg>
+────────────────────────────────────────────────────────
+>

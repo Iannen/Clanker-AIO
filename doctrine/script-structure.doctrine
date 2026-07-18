@@ -1,0 +1,181 @@
+# Script Cleanup & Organization plan
+
+## Goals - long term vision - several iterations
+- pay off some technical debt in the form of unwarranted complexity and disorganization of script members and content.
+- intoduce clearn architecture like sorting of members
+    - Core members: business logic bubble
+        - rely only on below layer.utils exclusively 
+    - Utils: library support, low level 'work' code 
+        - AppProvider static class
+            - an range of methods that core-members rely on to do things outside their bubble
+        - DefaultPrompt static class
+    - Unidirectional flow: core -> utils -> other imports
+- file commenting & member sorting
+    -sorting
+        - shebang
+        - 1 fileintro python docstring (""" This script .. """)
+        - imports
+        - following sections -> seperated by 1 line visually striking python docstring comments:
+        - """ STATIC DECLARATIONS """
+            - like the comment delimiter string
+        - """ CORE MEMBERS """ (sorted by importance)
+            - like harness & others
+            - forbidden to rely externally on anything other than utils layer code.
+        - """ UTILS """
+            - new static class to provide all required external functionality of above. 
+            - absorbs low level code from core which would otherwise infer external dependencies there.
+    - member comments
+        - static declarations -> no comments
+        - all classes get 1 python docstring line-comment each (just on the inside of def, like we do in pythn)
+            - then each of their methods similarly get a ds line-comment
+        - no other comments are allowed:
+            - inline 'explainer comments'
+
+
+## New core member lineup. 
+# - User is served by nested implementations of class Manager. Managers run a loop, to offer the user a view, and bind letters to functionality they offer the user, or to forwards to other managers, in a downstream fashion.
+# - Other core members may be services, which support the managers.
+#       - for example, DataService provide all managers with tailored persistence and data methods
+
+long term vision:
+
+        class Harness: Seems to doing app init, display and business logic. we split it up
+            def get_char(self):
+            def load_config_from_disk(self):
+            def start(self):
+            def handle(self, command):
+            def render(self):
+
+                -> new function main, unattached to any class.
+                    - called by __main__  on app (__main__ is at very bottom of utils)
+                    - main function location is very top of core. 
+                    - it initializes all services, and the commandmanager, passing him all services (there is but one at the moment)
+                    - it does CommandManager.start() in a try catch loop. we use this to ensure all uncaught errors find their way to the console in proper verbose fashion.
+                        - so rest of code can take the fail fast, sending anything they dont explicitly catch themselves back to main for centralized visibility.
+                            - error handling in other core members should be part of the business logic. ideally we dont declare the exceptions, but perhaps have a exceptions enum or dict to represent the exceptions.
+                            - errors that bubble to main cause verbose loggin, then exit 1. no survival from that point on.
+                -> new static class ConsoleViews, to contain render() type methods for manager type classes
+                -> new class CommandManager. handles letter commands, be they prompts or forward routing to other managers.
+                -> new class Manager (Standard ABC ?). for other managers to inherit. inheritors can then use their init to set up the loop:
+                        self.loop.setRenderFunc(ConsoleViews.the-view) (the render function is a 1. class func arg) return self (fluid style)
+                        self.loop.setCmd(letter, cmd_text, self.designated_handler_method, optional_confirm_text) return self (fluid style)
+
+        class EnvironmentManager. we split it up
+            @staticmethod def _compute_sha256(file_path: str) -> str:
+            def _applied(self) -> bool:
+            def _get_status(self) -> str:
+            def _update_config(self, path_value: str or None):
+            @staticmethod def copy_to_clipboard(text) -> int:
+            @staticmethod def acquire_and_run(state_service: AppState, get_char_func):
+            def run_loop(self, get_char_func):
+            def receive(self):
+            def toggle_execution(self):
+            def test_pipeline(self):
+            def resolve_mutation(self) -> bool:
+                -> new class WorkManager gets all functionality relating to the 'f' key, as it works now. I think this is it
+                -> new class RagManager to handle the rag management via its own loop
+                -> does environmentmanager have other responsibilities, not accounted for in the plan?
+
+        class Compiler
+            -> keep name - it compiles.
+            -> static is fine  (?)
+
+        - dataclass AppState
+            -> rename to DataService, non-dataclass Standard Class acting as a Stateful Service
+            -> it becomes something other component can rely on through its public api, like a sb service would be for a server app
+            -> the data it manages is either handled statefully in stateless fashion:
+                - the only thing permitted to carry on the class statefully is data that originated within the application.
+                    - examples thereof. They all originate with app:
+                        - our string representing a msg about last action
+                        - our cmd counter which we display
+                    - examples of things which for which statefulness is forbidden. they are all represented with a getter, which receives fresh, non-stale data from the source:
+                        - content of repo config. this is a file, and the file is authoritative
+                            - for things like a file, DataService can do crud, and so might offer a setter in addition to its getter - depending on other what other core members need from DataService
+                        - cwd and script_dir
+                            - the app cannot change these, so no setters.
+                - state date is carried in memory. this is what the application itself produces, things like last action msg, cmd counter etc
+                - stateless is data that is sourced from the outside, and that the app may or may not change. for instance:
+                    - script_dir is read by os type functionality, and is not subject of app control
+                    - cwd is also read by os functionality. it may be subject to app control, to examplify (although we will not go that way)
+                    - the repo config is read by os functionality, its complete subject of app control.
+
+        - new ErrorDictionary. 
+            - core declaration of the section, same as managers services and main
+            - holds entries representing errors. other core members can then throw general errors using members of this as content, which would be caught by other core code and handled in a business like fashion. all error or failure scenarios are represented here, or should always bubble to main for verbose logging. 
+            - the intended effect is that this reduces pressure to implement defensive strategies, allowing instead either properly defined reroutes of logic, or fail fast and loud program termination.
+
+
+## utils lineup:
+    - class AppProvider
+        -> absorbs all the boring looking code into general methods appropriate that do just the right amount of work, to leave behind general yet expressive method calls like:
+                - 'def get_file_content(path)'
+                - 'def overwrite_file_content(path, new_content)'
+                - 'def single_text_replacement_to_newline(existing_text, to_replace, replacement_text)' (makes sure insert is correct with reg to newlines. such responsibilities lie with utils)
+            buzzwords of code that might wind up here:
+                - 'POSIX raw'
+                - 'tty` / `termios`'
+                -  'OSC 52'
+                - 'I/O'
+    - class DefaultPrompt 
+        -> retain as-is 
+
+# target script layout:
+""" 
+#!/usr/bin/env python3
+"""This script implements a command-driven context compilation framework."""
+
+import os
+import sys
+
+""" STATIC DECLARATIONS """
+GLOBAL_CONFIG_FILE = "config.clank"
+
+
+""" CORE MEMBERS """
+
+def main():
+    """Application bootstrap function wrapping CommandManager in a global try-catch."""
+    pass
+
+class Manager:
+    """Base loop execution architecture for command-driven UI components."""
+    pass
+
+class CommandManager(Manager):
+    """Primary routing manager handling top-level terminal system selections."""
+    pass
+
+class WorkManager(Manager):
+    """Downstream mutation loop manager supervising the active file staging lifecycle."""
+    pass
+
+class RagManager(Manager):
+    """Downstream context loop manager handling target directory indexing pools."""
+    pass
+
+class Compiler:
+    """Stateless compilation processor parsing macro inclusion blocks."""
+    pass
+
+class DataService:
+    """Stateful service engine managing live persistence and environment tracking."""
+    pass
+
+class ConsoleViews:
+    """Static presentation layout engine generating UI screens and error matrices."""
+    pass
+
+
+""" UTILS """
+
+class AppProvider:
+    """Static platform bridge managing POSIX tty settings, termios raw bytes, and OSC 52 streams."""
+    pass
+
+class DefaultPrompt:
+    """Static baseline fallback structure providing core interface text assets."""
+    pass
+
+if __name__ == "__main__":
+    main()
+"""

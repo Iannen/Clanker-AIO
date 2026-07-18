@@ -1,0 +1,74 @@
+================================================================================
+          THE CLANKER ARCHITECTURAL WISDOM & DESIGN PHILOSOPHY
+================================================================================
+
+This document synthesizes the architectural direction, core compilation rules, 
+and design patterns developed for clank-compiler.py. It represents the structural 
+principles to guide future updates, refactoring, and AI-assisted extensions.
+
+---
+
+[1] SYSTEM PATH SEGREGATION
+- repo_dir (The Repository Directory):
+  The active working directory where the developer compiles targets. It is 
+  resolved dynamically at runtime from where the script is executed.
+- script_dir (The Script Directory):
+  The static location where the compiler script and standard pipeline source files 
+  reside. This directory is strictly isolated from repo_dir to prevent assets 
+  from polluting the active codebase.
+
+---
+
+[2] THE PHILOSOPHY OF "SEPARATING HIGH AND LOW"
+Utility scripts degrade when logical mechanics (the "how") get tangled with 
+declarative intents (the "what"). For maximum ease of maintenance, the file 
+should be divided into clearly visible zones:
+
+- High-Level Declarative Zone (Top of File):
+  Contains path lookup strategies, custom syntax symbols, and prompt compilation 
+  pipelines (the letter-to-fragment routing tables). Changing the user interface, 
+  updating fallbacks, or adding new tool modes should require only editing a 
+  high-level configuration dictionary.
+  
+- Low-Level Plumbing Zone (Bottom of File):
+  Contains OS-level terminal wrappers, keyboard listeners, clipboard writers, and 
+  recursive template expansion functions. Once written, these mechanics should 
+  remain static and completely decoupled from specific project details.
+
+---
+
+[3] THE PARSING GRAMMAR & WHITESPACE ALIGNMENT
+The compilation engine operates on a silent, raw, recursive lookup scheme. To 
+ensure the generated LLM prompts remain highly readable and syntactically clean, 
+the compiler adheres to strict formatting standards:
+
+- Subsequent-Line Placeholder Structure:
+  Avoid placing consecutive tags on a single line. If tags are placed on the 
+  same line, the recursive raw string replacement will mash compiled codeblocks 
+  together horizontally. Place placeholders on separate, vertical lines.
+  
+- Indentation Mirroring:
+  Since the compiler does a literal string replace without adjusting indents, 
+  child fragments must pre-indent their content. This ensures they align with the 
+  parent block once spliced into the master game-runtime layout.
+
+- Human vs. Machine Segregation:
+  Files are split into a human-facing comment block (top) and an LLM-facing 
+  payload block (bottom) separated by the marker line: "--- START PROMPT ---".
+  The compiler strips away the human documentation during compilation, sending 
+  only dense XML-style prompt contexts to the clipboard.
+
+---
+
+[4] KEY CODES & SHELL OPTIMIZATIONS
+- Raw TTY Listening:
+  Single-character keystroke reads provide immediate menu action, avoiding 
+  sluggish terminal inputs.
+- OSC 52 Copy Sequence:
+  Using standard base64 and terminal control escape sequences allows copy-to-clipboard 
+  functionality to work natively, even across SSH tunnels and terminal multiplexers 
+  without relying on OS dependencies.
+- Loop Prevention:
+  Explicit stack-tracking of visited paths prevents include cycles when resolving 
+  recursive placeholders.
+================================================================================

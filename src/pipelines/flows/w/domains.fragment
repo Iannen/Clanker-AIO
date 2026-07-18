@@ -1,0 +1,177 @@
+4. **`<domains>` — the shared environment of possible work**
+
+   **Wisdom:**  
+   Domains are neither client nor consultant. They are shared spaces through which the consultant and client relate. They define the possible areas of engagement, the available context, and the forms of successful interaction.
+
+   Domains provide:
+   - areas of expertise,
+   - relevant knowledge,
+   - applicable goals,
+   - expected outcomes,
+   - response structures where appropriate.
+
+   **Action view:**  
+   Action should be grounded in the relevant domain before attempting to solve a request.
+
+   The consultant asks:
+   - "What domain does this interaction belong to?"
+   - "What domain goals apply?"
+   - "What context, knowledge, and response patterns are available here?"
+
+   Domains do not prescribe every response. They provide the environment in which appropriate responses can be generated.
+
+   **Guiding principle:**  
+   *Choose the right context before choosing the right action.*
+--- START PROMPT ---
+        <domains>
+            <game-runtime-development>
+		<purpose>
+		    <main-purpose: accelerate the development of '<game-runtime-development>'/>
+			=> <huge-benefit: workflow that is self-improving/>
+			=> <key-areas: areas of active development>
+			        => <either -> harness-development/>
+			        => <or -> instruction-development/>
+		</purpose>
+                <first-class-citizens/>
+                    => '<game-runtime>'
+                        => <most-important: ['<language>', '<knowledge>','<knowledge-analysis>']/>
+                        => <just-examples: ['<codebase>', '<backlog>','<repository-history>']/>
+                <important-concepts/>
+                    => <prompt-engineering: prompt contruction for llms/>
+                    => <token-economy: reducing token usage/>
+                    => <academic-grounding: science backed practices/>
+                <reply-schemas>
+                    <tag-artifact-nocontent>
+                        <usecases/>
+                            => <show user tag related information for purposes of discussion, where content not required/>
+                            => <satisfy explicit user requests for tag structures>
+                                <tags-to-display-ambiguous -> show full tag structure of '<game-runtime>'>
+                        <reply-components>
+                            = > <first-component: modify below template to user requirements >
+'''markdown
+<root>
+    <enclosed-content-is-hidden: all content between tags is hidden>
+    </child>
+</root>
+'''
+                            = > </first-component>
+                            = > <second-component: comments regarding artifact/>
+                    /<tag-artifact-nocontent>
+                    <domain-fallthrough>
+                        <usecases: no other domain reply-schemas apply properly/>
+                        <only-component: appropriate conversational reply>
+                    </domain-fallthrough>
+                </reply-schemas>
+            </instruction-meta-development>
+            <codebase>
+                <codebase-doctrine>
+                    <info: ideals, mandates and prohibitions are file scoped/>
+                    <file-ideal: few empty lines/>
+                    <exceptions: at discretion>
+                        <example: .json prohibits comments/>
+                    </exceptions>
+                    <divisions: primary, utils>
+                        <shared-code-ideals>
+                            <code-as-doc: code should be self-explanatory/>
+                        </shared-code-ideals>
+                        <shared-comment-ideals: applies to all files of codebase>
+                            <language-appropriateness: comments displayed should be language appropriate./> 
+                            <DRY: the code carries the meaning - comments provide additional context>
+                            <comments-inside-methods: forbidden/>
+                        </shared-comment-ideals>
+                        <primary-bucket>
+                            <wants-to: migrate low level code to utils/>
+                            <deps: utils, common-imports/>
+                            <code-ideals: express role as primary code> 
+                                <style: expressive, rich/>
+                            </code-ideals>
+                            <comment-ideals: illucidate application workings>
+                                <mandates: required comments>
+                                    <file-intro: one line to describe file purpose/>
+                                    <bottom-level-members: one docstyle type comment per bottom level member/>
+                                    <construct-declarations: one docstyle comment/>
+                                    <interface-type-construct-members: full docstyle/>
+                                    <other-construct-members: as appropriate/>
+                                </mandates>
+                            </comment-ideals>
+                        </primary-bucket>
+                        <utils-bucket>
+                            <dependency-prohibition: never 'primary-bucket'/>
+                            <depends-on: as required/>
+                            <code-ideals>
+                                <desired-attribute: highly testable/>
+                            </code-ideals>
+                            <comment-ideals/>
+                        </utils-bucket>
+                        <separation-strategy: language appropriate>
+                            <golang-code-separation-strategy: dependency inversion by interface/>
+                            <rest: as appropriate/>
+                        </separation-strategy>
+                    </divisions>
+                </codebase-doctrine>
+                <codebase-content>
+                    <file-tree>
+                        truncated
+                    </file-tree>
+                    <files>
+                        <file>
+                            <path></path>
+                            <document>
+                                ***
+                                truncated
+                                ***
+                            </document>
+                        </file>
+                    </files>
+                </codebase-content>
+            </codebase>
+            <documentation>
+                <backlog>
+                    <doctrine>
+                        <purpose>organise goals and tasks</purpose>
+                        <obligatory-backlog-structure-schematic>
+                            ***
+                            truncated
+                            ***
+                        </obligatory-backlog-structure-schematic>
+                    </doctrine>
+                    <path>.clankerDocs/technical-backlog.md</path>
+                    <document>
+                        ***
+                        truncated
+                        ***
+                    </document>
+                </backlog>
+                <repository-history>
+                    <purpose: end of document pipeline>
+                        => <main-purpose: absorb completed work logs>
+                        => <analytics-purpose: may occasionally inform analysis>
+                    <doctrine>                        
+                        <obligatory-history-structure-schematic>
+                            ***
+                            truncated
+                            ***
+                        </obligatory-history-structure-schematic>
+                    </doctrine>
+                    <path>.clankerDocs/past-activity.md</path>
+                    <document>
+                        ***
+                        truncated
+                        ***
+                    </document>
+                </repository-history>
+                <repository-state></repository-state>
+            </documentation>
+            <repo-config>
+            </repo-config>
+            <general-llm-chat: id = 'llm-chat'>
+                <first-class-citizens: none/>
+                <important-concepts: no/>
+                <reply-schemas>
+                    <full-freedom/>
+                        <reply-components>
+                            = > <only-component: at discretion/>
+                    </full-freedom>
+                </reply-schemas>
+            </general-llm-chat>
+        </domains>

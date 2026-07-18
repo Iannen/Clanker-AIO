@@ -1,0 +1,12 @@
+{
+    "active_mutation_path": "/root/test/clanker/clanker-aio/clank-compiler.py",
+    "active_rag_set": "script",
+    "rag_sets": [
+        {
+            "name": "script",
+            "paths": [
+                "clank-compiler.py"
+            ]
+        }
+    ]
+}
