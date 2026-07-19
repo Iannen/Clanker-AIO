@@ -1,0 +1,21 @@
+# Evolution Report: Multi-File Pipeline Refactor
+
+## 1. Specifications Mapping
+| Refactor Plan Concept | Implementation Strategy | Status |
+| :--- | :--- | :--- |
+| **Clanker/backups Architecture** | `Clanker/backups/refactor-plan.artifact` and `hashes.map` generated dynamically upon receipt. | Complete |
+| **EnvironmentManager `_get_state`** | 4-state evaluation engine (`free`, `applied`, `not_applied`, `error`) utilizing cross-validation of workspace hashes against backup configurations. | Complete |
+| **Letter Bindings Overhaul** | Sub-loop constraints enforced inside `run_loop`; validation guards added before execution blocks. | Complete |
+| **Atomic Toggling Matrix** | Content streaming copies from backup matrix directly, handling directory optimization safely. | Complete |
+
+## 2. Deviations & Structural Divergences
+* **Hash Validation Range Expansion**: The implementation checks if existing untracked files match `create` blocks when verifying `not_applied`, preventing catastrophic overwrites of dirty state paths.
+* **Directory Collapsing Mechanism**: `_cleanup_empty_dirs` recursively removes parent trees up to, but stopping exactly before, the repository root path.
+* **Permissions Hardcoding**: Files written during the `applied` phase are hardcoded to standard execution parameters (`0o755`).
+
+## 3. Verified State Transitions Matrix
+* `free` ➔ `not_applied` (Via **[q] Receive**)
+* `not_applied` ⇄ `applied` (Via **[w] Toggle Execution**)
+* `applied` ➔ `free` (Via **[r] Resolve Mutation / Accept**)
+* `not_applied` ➔ `free` (Via **[r] Resolve Mutation / Reject**)
+* Any inconsistent system mutation ➔ `error` (All actions structurally blocked)

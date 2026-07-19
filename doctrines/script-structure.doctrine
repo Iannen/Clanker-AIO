@@ -1,0 +1,212 @@
+# Script Cleanup & Organization plan
+
+## Goals - long term vision - several iterations
+- pay off some technical debt in the form of unwarranted complexity and disorganization of script members and content.
+- intoduce clearn architecture like sorting of members
+
+1. Restructure members of python application into clean architecture:
+
+    a. Unidirectional flow of layers: core -> utils -> app external exports
+
+    b. Core members: business logic bubble
+        - rely only on below layer.utils exclusively 
+        - The following enumerate all types of core members:
+            - the main method -> a category of one member (the mm). Called at the very end of the file, in 'if __name__ == "__main__": main()''.
+            - the Managers -> all inherit a Manager class to run an ui loop. They operate in a hierarchy stack fashion, with transient instantiations who are garbage collected on user loop exits. Managers may only rely on services. 
+            - All implementors are named ..Manager
+            - Services
+                - Support the managers.
+                - Principle of Service Isolation: Service layer members are strictly forbidden from executing peer crosstalk or maintaining intra-core dependencies. 
+                - The Mediator Pattern: Managers serve as the exclusive coordinators of the execution flow. If an operation requires data or actions from multiple services, the calling Manager must explicitly query the individual services and mediate the data transit upfront via single-payload injection objects.
+                -  All implementors are named ..Service
+            - Library members 
+                - exist purely to support the other layers with deterministic static lookups. 
+                - zero business logic, cannot call methods, do not manage state.
+                - libraries may store anything from functions to strings.
+                - all memebers end with ..Library
+
+    c. Utils members: low level 'work' code.
+            - Util members may rely on app external imports. For now there is only one:
+            - SystemBridge static class
+                - a range of methods that core-members rely on to do things outside their bubble
+
+2. File structure - comments & sections
+    a. File structure
+        - shebang
+        - 1 fileintro python docstring(pdc) (""" This script .. """), kinda introductory
+        - 1 'this happened last time' pdc
+        - imports
+        - following sections make up the rest of the file, and are seperated by visually striking pdc:
+        - """ STATIC DECLARATIONS """
+            - like the comment delimiter string
+        - """ CORE MEMBERS """ (sorted by importance)
+            - forbidden to rely externally on anything other than utils layer code.
+        - """ UTILS """
+            - new static class to provide all required external functionality of above. 
+            - absorbs low level code from core which would otherwise infer external dependencies there.
+        
+    b. Member comments
+        - static declarations -> no comments
+        - all classes get 1 python docstring line-comment each (just on the inside of def, like we do in pythn)
+            - then each of their methods similarly get a ds line-comment
+        - no other comments are allowed:
+            - no inline 'explainer comments'
+
+3. Old member to new member mapping & new members
+
+        class Harness: Seems to doing app init, display and business logic. we split it up
+            def get_char(self):
+            def load_config_from_disk(self):
+            def start(self):
+            def handle(self, command):
+            def render(self):
+
+                -> new function main, unattached to any class.
+                -> new static class ViewLibrary, to contain render() type methods for manager type classes
+                -> new class MainManager, handles initial letter routing, may also have user facing functionality appropriate to first-menu use cases.
+                -> new class Manager (Standard ABC ?). for other managers to inherit. inheritors can then use their init to set up the loop
+
+        class EnvironmentManager. we split it up
+            @staticmethod def _compute_sha256(file_path: str) -> str:
+            def _applied(self) -> bool:
+            def _get_status(self) -> str:
+            def _update_config(self, path_value: str or None):
+            @staticmethod def copy_to_clipboard(text) -> int:
+            @staticmethod def acquire_and_run(state_service: AppState, get_char_func):
+            def run_loop(self, get_char_func):
+            def receive(self):
+            def toggle_execution(self):
+            def test_pipeline(self):
+            def resolve_mutation(self) -> bool:
+
+                -> new class WorkManager gets all functionality relating to the 'f' key, as it works now. 
+                -> new class RagManager to handle the rag management via its own loop
+
+        class Compiler
+            -> Rename to CompilerService
+            -> static is fine  (?)
+
+        - dataclass AppState
+            -> rename to DataService, non-dataclass Standard Class acting as a Stateful Service
+
+        - new ErrorLibrary. 
+            - lean centralization of exception declarations preferred over multiple separate ex declarations.
+
+    - class AppProvider
+        -> rename to SystemBridge
+        -> absorbs all the boring looking code into general methods appropriate that do just the right amount of work, to leave behind general yet expressive method calls like:
+                - 'def get_file_content(path)'
+                - 'def overwrite_file_content(path, new_content)'
+                - 'def single_text_replacement_to_newline(existing_text, to_replace, replacement_text)' (makes sure insert is correct with reg to newlines. such responsibilities lie with utils)
+            buzzwords of code that might wind up here:
+                - 'POSIX raw'
+                - 'tty` / `termios`'
+                -  'OSC 52'
+                - 'I/O'
+    - class DefaultPrompt 
+        -> rename to StaticFragmentLibrary
+
+# target script layout with more details:
+""" 
+#!/usr/bin/env python3
+"""This script implements a command-driven context compilation framework."""
+
+import os
+import sys
+
+""" STATIC DECLARATIONS """
+GLOBAL_CONFIG_FILE = "config.clank"
+
+
+""" CORE MEMBERS (These contain more docstrings than output format allows. this is to inform the reader)"""
+
+def main():
+    """Application bootstrap function wrapping MainManager in a global try-catch."""
+    """
+new function main, unattached to any class:
+    - called by __main__  on app (__main__ is at very bottom of utils)
+    - main function location is very top of core. 
+    - it initializes all services, and the mainmanager, passing him all services (only DataService at the moment)
+    - it does MainManager.start() in a try catch loop. we use this to ensure all uncaught errors find their way to the console in proper verbose fashion.
+        - so rest of code can take the fail fast, sending anything they dont explicitly catch themselves back to main for centralized visibility.
+            - error handling in other core members should be part of the business logic. ideally we dont declare the exceptions, but perhaps have a exceptions enum or dict to represent the exceptions.
+            - errors that bubble to main cause verbose loggin, then exit 1. no survival from that point on.    
+    """
+    pass
+
+class Manager:
+    """Base loop execution architecture for command-driven UI components."""
+    """
+    new class Manager (Standard ABC ?). for other managers to inherit. inheritors can then use their init to set up their loops
+        - self.set_render_func(ViewLibrary.the-view) (the render function is a 1. class func arg) return self (fluid style)
+        - self.set_cmd(letter, cmd_text, self.designated_handler_method, optional_confirm_text) return self (fluid style)
+    Managers invoke eachother in a call stack by their .start() methods. main starts the MainManager, who will start the next one, and so on
+    """
+    pass
+
+class MainManager(Manager):
+    """Primary routing manager handling top-level terminal system selections."""
+    pass
+
+class WorkManager(Manager):
+    """Downstream mutation loop manager supervising the active file staging lifecycle."""
+    """
+    new class WorkManager gets all functionality relating to the 'f' key, as it works now. 
+        note: the new workmanager no longer performs rmdir. the new 'dangling directory' policy is to leave them behind for user to clean up. this is to avoid dealing with the edge cases of recursive rmdirs
+    """
+    pass
+
+class RagManager(Manager):
+    """Downstream context loop manager handling target directory indexing pools."""
+    pass
+
+class CompilerService:
+    """Stateless compilation processor parsing macro inclusion blocks."""
+    pass
+
+class DataService:
+    """Stateful service engine managing live persistence and environment tracking."""
+    """
+    - it becomes something other component can rely on through its public api, like a sb service would be for a server app
+    - the data it manages is either handled statefully in stateless fashion:
+        - the only thing permitted to carry on the class statefully is data that originated within the application.
+            - examples thereof. They all originate with app:
+                - our string representing a msg about last action
+                - our cmd counter which we display
+            - examples of things which for which statefulness is forbidden. they are all represented with a getter, which receives fresh, non-stale data from the source:
+                - content of repo config. this is a file, and the file is authoritative
+                    - for things like a file, DataService can do crud, and so might offer a setter in addition to its getter - depending on other what other core members need from DataService
+                - cwd and script_dir
+                    - the app cannot change these, so no setters.
+        - state date is carried in memory. this is what the application itself produces, things like last action msg, cmd counter etc
+        - stateless is data that is sourced from the outside, and that the app may or may not change. for instance:
+            - script_dir is read by os type functionality, and is not subject of app control
+            - cwd is also read by os functionality. it may be subject to app control, to examplify (although we will not go that way)
+            - the repo config is read by os functionality, its complete subject of app control.
+    """
+    pass
+
+class ViewLibrary:
+    """Static presentation layout engine generating UI screens and error matrices."""
+    pass
+
+class ErrorLibrary:
+    """Central registry of unified application error definitions and failure states.
+    
+    Provides standardized content for business-logic catch blocks or fast-failing bubble exits.
+    """
+    pass
+
+class StaticFragmentLibrary:
+    """Static baseline fallback structure providing core interface text assets."""
+    pass
+
+""" UTILS """
+
+class SystemBridge:
+    """Static platform bridge managing POSIX tty settings, termios raw bytes, and OSC 52 streams."""
+    pass
+
+if __name__ == "__main__":
+    main()
+"""
